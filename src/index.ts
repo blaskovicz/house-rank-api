@@ -33,7 +33,10 @@ import { TokenPayload } from "google-auth-library/build/src/auth/loginticket";
 import { createUserFromPrincipal } from "./database";
 import { schema } from "./graphql";
 
-const { ZWSID, GOOGLE_CLIENT_ID, DATABASE_URL } = process.env;
+let { ZWSID, GOOGLE_CLIENT_ID, DATABASE_URL } = process.env;
+GOOGLE_CLIENT_ID = GOOGLE_CLIENT_ID.trim();
+ZWSID = ZWSID.trim();
+DATABASE_URL = DATABASE_URL.trim();
 if (!ZWSID) {
   throw new Error("Missing required ZWSID environment parameter");
 }
@@ -75,6 +78,10 @@ app.use(bodyParser.json());
 // oauth2 middleware
 app.use(
   expressAsyncHandler(async (req, res, next) => {
+    if (req.method === "OPTIONS") {
+      return next();
+    }
+
     const auth = req.header("authorization") || "";
     const authParts = auth.split(" ", 2);
     if (authParts.length !== 2 || authParts[1] === "") {
