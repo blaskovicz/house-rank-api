@@ -1,10 +1,27 @@
 import bodyParser from "body-parser";
 import dotenv from "dotenv";
 dotenv.config();
+import { readdirSync, readFileSync } from "fs";
+const secretsPath = "/run/secrets";
+try {
+  const files = readdirSync(secretsPath);
+  for (const f of files) {
+    const value = readFileSync(`${secretsPath}/${f}`, { encoding: "utf8" });
+    const key = f.toUpperCase();
+    const prevValue = process.env[key];
+    if (prevValue && prevValue !== value) {
+      console.log(`[swarmed] ${key} value overridden.`);
+    } else {
+      console.log(`[swarmed] loaded ${key}`);
+    }
+    process.env[key] = value;
+  }
+} catch (e) {
+  console.warn("[swarmed] failed to load secrets:", e.toString());
+}
 
 import express from "express";
 import expressAsyncHandler from "express-async-handler";
-import { readdirSync, readFileSync } from "fs";
 import morgan from "morgan";
 import nodeZillow from "node-zillow";
 import axios from "axios";
@@ -16,21 +33,6 @@ import { TokenPayload } from "google-auth-library/build/src/auth/loginticket";
 import { createUserFromPrincipal } from "./database";
 import { schema } from "./graphql";
 
-const secretsPath = "/run/secrets";
-try {
-  const files = readdirSync(secretsPath);
-  for (const f of files) {
-    const value = readFileSync(`${secretsPath}/${f}`, { encoding: "utf8" });
-    const key = f.toUpperCase();
-    const prevValue = process.env[key];
-    if (prevValue && prevValue !== value) {
-      console.log(`[swarmed] ${key} value overridden.`);
-    }
-    process.env[key] = value;
-  }
-} catch (e) {
-  console.warn("Failed to load secrets:", e.toString());
-}
 const { ZWSID, GOOGLE_CLIENT_ID, DATABASE_URL } = process.env;
 if (!ZWSID) {
   throw new Error("Missing required ZWSID environment parameter");
