@@ -1,0 +1,26 @@
+version: "3.3"
+
+services:
+  web:
+    image: 127.0.0.1:5000/house-rank-api
+    build: .
+    environment:
+      NODE_ENV: production
+      LOG_LEVEL: info
+    ports:
+      - "4095:4095"
+    secrets:
+      - source: house-rank-api_database_url_v1
+        target: database_url
+      - source: house-rank-api_zwsid_v1
+        target: zwsid
+      - source: house-rank-api_google_client_id_v1
+        target: google_client_id
+
+secrets:
+  house-rank-api_database_url_v1:
+    external: true
+  house-rank-api_zwsid_v1:
+    external: true
+  house-rank-api_google_client_id_v1:
+    external: true

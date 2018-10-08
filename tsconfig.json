@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "moduleResolution": "node",
+    "target": "es5",
+    "lib": ["es2018", "esnext"],
+    "types": ["node"],
+    "outDir": "dist",
+    "declaration": true,
+    "declarationDir": "dist",
+    "esModuleInterop": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["src/**/*.spec.ts"]
+}
