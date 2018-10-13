@@ -1,4 +1,5 @@
 import nodeZillow from "node-zillow";
+import zillowError from "./zillow-error";
 
 interface AddressProperty {
   street: string[];
@@ -72,7 +73,7 @@ export async function zillowAddressSearchResolver(
     citystatezip
   });
   if (!zillowRes.message || zillowRes.message.code !== "0") {
-    throw zillowRes;
+    throw zillowError(zillowRes);
   }
   return zillowRes.response.results.result
     .map(mapZillowAddress)

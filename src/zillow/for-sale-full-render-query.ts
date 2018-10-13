@@ -1,4 +1,5 @@
 import axios from "axios";
+import zillowError from "./zillow-error";
 
 // TODO: expose other fields for proxing if needed
 export const ZILLOW_PROPERTY_INFO_TYPE = `
@@ -125,7 +126,7 @@ export async function zillowPropertyResolver({ zpid }, args, { zwsid }, info) {
     data: query(zpid)
   });
   if (zillowRes.status !== 200 || !zillowRes.data) {
-    throw zillowRes;
+    throw zillowError(zillowRes);
   }
   return zillowRes.data.data.property;
 }

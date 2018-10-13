@@ -23,10 +23,6 @@ try {
 import express from "express";
 import expressAsyncHandler from "express-async-handler";
 import morgan from "morgan";
-import nodeZillow from "node-zillow";
-import axios from "axios";
-import priceTaxQuery from "./zillow/price-tax-query";
-import forSaleFullRenderQuery from "./zillow/for-sale-full-render-query";
 import { OAuth2Client } from "google-auth-library";
 import expressGraphql from "express-graphql";
 import { TokenPayload } from "google-auth-library/build/src/auth/loginticket";
@@ -46,7 +42,6 @@ if (!GOOGLE_CLIENT_ID) {
 if (!DATABASE_URL) {
   throw new Error("Missing required DATABASE_URL environment parameter");
 }
-const zillow = new nodeZillow(ZWSID, { https: true });
 const app = express();
 
 // custom logging middleware
@@ -111,6 +106,7 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: "an error occurred" });
 });
 
+// cors middleware
 app.use(
   "*",
   expressAsyncHandler(async (req, res, next) => {
@@ -135,20 +131,6 @@ app.use(
   })
 );
 
-// a homelist has many homes
-// a homelist has many members (owner, viewer, or collaborator)
-
-// list all home lists the user is a member of
-// read a single home list
-// create a home list
-// add a home to home list
-// remove a home from a home list
-// delete a home list
-// list members of a home list
-// add a member to a home list
-// delete a member from home list
-// update a member's home list access
-
 app.use("/graphql", (req, res, next) =>
   expressGraphql({
     schema,
@@ -161,78 +143,6 @@ app.use("/graphql", (req, res, next) =>
       user: (req as any).user
     }
   })(req, res)
-);
-
-// search properties
-app.get(
-  "/api/v1/zillow/properties",
-  expressAsyncHandler(async (req, res, next) => {
-    let { address, citystatezip } = req.query;
-    if (!citystatezip) {
-      citystatezip = "10001";
-    }
-    if (!address) {
-      address = "5 Washington Square S";
-    }
-    const zillowRes = await zillow.get("GetSearchResults", {
-      address,
-      citystatezip
-    });
-
-    if (!zillowRes.message || zillowRes.message.code !== "0") {
-      return res.status(400).json(zillowRes);
-    }
-
-    res.json(zillowRes.response.results.result);
-  })
-);
-
-// get single property
-app.get(
-  "/api/v1/zillow/properties/:zpid",
-  expressAsyncHandler(async (req, res, next) => {
-    const { zpid } = req.params;
-    const responsePayload = { pricing: {}, property: {} };
-    const zillowRes = await axios({
-      validateStatus: status => status < 600,
-      url: "https://www.zillow.com/graphql/",
-      method: "POST",
-      headers: {
-        "content-type": "text/plain",
-        "accept-language": "en-US,en;q=0.9",
-        "user-agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36"
-      },
-      params: {
-        zwsid: ZWSID
-      },
-      data: priceTaxQuery(zpid)
-    });
-    if (!zillowRes.data || zillowRes.status !== 200) {
-      return res.status(400).json(zillowRes.data);
-    }
-    responsePayload.pricing = zillowRes.data.data.property;
-    const zillowRes2 = await axios({
-      validateStatus: status => status < 600,
-      url: "https://www.zillow.com/graphql/",
-      method: "POST",
-      headers: {
-        "content-type": "text/plain",
-        "accept-language": "en-US,en;q=0.9",
-        "user-agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36"
-      },
-      params: {
-        zwsid: ZWSID
-      },
-      data: forSaleFullRenderQuery(zpid)
-    });
-    if (!zillowRes2.data || zillowRes2.status !== 200) {
-      return res.status(400).json(zillowRes2.data);
-    }
-    responsePayload.property = zillowRes2.data.data.property;
-    res.json(responsePayload);
-  })
 );
 
 const PORT = +(process.env.PORT || 3000);

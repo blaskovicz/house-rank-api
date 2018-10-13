@@ -1,4 +1,5 @@
 import axios from "axios";
+import zillowError from "./zillow-error";
 
 export const ZILLOW_PRICING_INFO_TYPE = `
 type ZillowTaxHistoryInfo {
@@ -53,7 +54,7 @@ export async function zillowPricingResolver({ zpid }, args, { zwsid }, info) {
     data: query(zpid)
   });
   if (zillowRes.status !== 200 || !zillowRes.data) {
-    throw zillowRes;
+    throw zillowError(zillowRes);
   }
   return zillowRes.data.data.property;
 }

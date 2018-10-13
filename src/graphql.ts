@@ -1,16 +1,16 @@
-import * as database from "./database";
-import priceTaxQuery, {
-  ZILLOW_PRICING_INFO_TYPE,
-  zillowPricingResolver
-} from "./zillow/price-tax-query";
-import forSaleFullRenderQuery, {
-  ZILLOW_PROPERTY_INFO_TYPE,
-  zillowPropertyResolver
-} from "./zillow/for-sale-full-render-query";
 import { GraphQLScalarType } from "graphql";
-import { Kind } from "graphql/language";
 import { makeExecutableSchema } from "graphql-tools";
+import { Kind } from "graphql/language";
+import * as database from "./database";
 import { zillowAddressSearchResolver } from "./zillow/address-query";
+import {
+  zillowPropertyResolver,
+  ZILLOW_PROPERTY_INFO_TYPE
+} from "./zillow/for-sale-full-render-query";
+import {
+  zillowPricingResolver,
+  ZILLOW_PRICING_INFO_TYPE
+} from "./zillow/price-tax-query";
 
 const typeDefs = `
   scalar Date
@@ -182,4 +182,8 @@ const resolvers = {
   })
 };
 
-export const schema = makeExecutableSchema({ typeDefs, resolvers });
+export const schema = makeExecutableSchema({
+  typeDefs,
+  resolvers,
+  logger: console
+});
