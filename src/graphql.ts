@@ -10,6 +10,7 @@ import forSaleFullRenderQuery, {
 import { GraphQLScalarType } from "graphql";
 import { Kind } from "graphql/language";
 import { makeExecutableSchema } from "graphql-tools";
+import { zillowAddressSearchResolver } from "./zillow/address-query";
 
 const typeDefs = `
   scalar Date
@@ -18,6 +19,16 @@ const typeDefs = `
   type Zillow {
     pricing: ZillowPricingInfo
     property: ZillowPropertyInfo    
+  }
+  type ZillowAddress {
+    zpid: String
+    city: String
+    latitude: Float
+    longitude: Float
+    state: String
+    street: String
+    zipcode: String
+    zillow: Zillow
   }
   type House {
     id: Int
@@ -60,6 +71,7 @@ const typeDefs = `
     user: User
     principal: Principal
     zillowProperty(zpid: String!): Zillow
+    zillowAddressSearch(address: String!, citystatezip: String!): [ZillowAddress]
   }
   schema {
     query: Query
@@ -113,13 +125,19 @@ const resolvers = {
     },
     zillowProperty: (obj, { zpid }, context, info) => {
       return { zpid };
-    }
+    },
+    zillowAddressSearch: zillowAddressSearchResolver
   },
   Zillow: {
     pricing: zillowPricingResolver,
     property: zillowPropertyResolver
   },
   House: {
+    zillow: ({ zpid }, args, context, info) => {
+      return { zpid };
+    }
+  },
+  ZillowAddress: {
     zillow: ({ zpid }, args, context, info) => {
       return { zpid };
     }
