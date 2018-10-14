@@ -29,6 +29,7 @@
     "google-auth-library": "^2.0.0",
     "graphql": "^14.0.2",
     "graphql-tools": "^4.0.0",
+    "moment": "^2.22.2",
     "morgan": "^1.9.1",
     "node-zillow": "^2.0.0",
     "pg": "^7.5.0",

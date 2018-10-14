@@ -2,6 +2,7 @@ import { GraphQLScalarType } from "graphql";
 import { makeExecutableSchema } from "graphql-tools";
 import { Kind } from "graphql/language";
 import * as database from "./database";
+import moment from "moment";
 import { zillowAddressSearchResolver } from "./zillow/address-query";
 import {
   zillowPropertyResolver,
@@ -133,12 +134,47 @@ const resolvers = {
     property: zillowPropertyResolver
   },
   House: {
-    zillow: ({ zpid }, args, context, info) => {
-      return { zpid };
+    zillow: async (house: database.House, args, context, info) => {
+      // node between house and zillow data may optionally use cached house data
+      const zillowProperty: any = { zpid: house.zpid };
+      if (
+        house.zillow_info_updated_at &&
+        moment(house.zillow_info_updated_at)
+          .add(1, "day")
+          .isAfter(moment())
+      ) {
+        // cached value still valid
+        zillowProperty.pricing = house.zillow_pricing_info;
+        zillowProperty.property = house.zillow_property_info;
+      } else {
+        // cached value missing or stale, fetch
+        try {
+          const propertyP = zillowPropertyResolver(
+            zillowProperty,
+            args,
+            context,
+            info
+          );
+          const pricingP = zillowPricingResolver(
+            zillowProperty,
+            args,
+            context,
+            info
+          );
+          const [pricing, property] = [await pricingP, await propertyP];
+          await database.updateHouse(house.zpid, pricing, property);
+          zillowProperty.pricing = pricing;
+          zillowProperty.property = property;
+        } catch (e) {
+          console.warn("failed to refresh cached house data", house, e);
+        }
+      }
+      return zillowProperty;
     }
   },
   ZillowAddress: {
     zillow: ({ zpid }, args, context, info) => {
+      // TODO cache here via House rows, but don't create tons of useless rows
       return { zpid };
     }
   },

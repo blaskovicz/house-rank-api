@@ -13,7 +13,7 @@ const pool = new Pool({
   database: databaseUrl.pathname.substring(1)
 });
 
-interface User {
+export interface User {
   id: number;
   provider_id: string;
   provider: string;
@@ -21,12 +21,15 @@ interface User {
   created_at: Date;
 }
 
-interface House {
+export interface House {
   id: number;
   zpid: string;
+  zillow_pricing_info?: JSON;
+  zillow_property_info?: JSON;
+  zillow_info_updated_at?: Date;
 }
 
-interface HouseList {
+export interface HouseList {
   id: number;
   name: string;
 }
@@ -66,6 +69,31 @@ export async function createHouseList(
       [name, ownerId]
     );
     return res.rows[0];
+  } finally {
+    client.release();
+  }
+}
+
+export async function updateHouse(
+  zpid: string,
+  zpricing: JSON,
+  zproperty: JSON,
+  zupdated?: Date
+): Promise<void> {
+  const client = await pool.connect();
+  try {
+    const res = await client.query(
+      "update houses set zillow_pricing_info = $1, zillow_property_info = $2, zillow_info_updated_at = $3 where zpid = $4",
+      [
+        JSON.stringify(zpricing),
+        JSON.stringify(zproperty),
+        zupdated || new Date(),
+        zpid
+      ]
+    );
+    if (res.rowCount !== 1) {
+      throw new Error(`House with zpid ${zpid} not found`);
+    }
   } finally {
     client.release();
   }

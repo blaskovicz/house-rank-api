@@ -9,7 +9,10 @@ CREATE UNIQUE INDEX uniq_user ON users(provider_id);
 
 CREATE TABLE houses(
     id SERIAL PRIMARY KEY,
-    zpid TEXT NOT NULL UNIQUE
+    zpid TEXT NOT NULL UNIQUE,
+    zillow_pricing_info JSONB,
+    zillow_property_info JSONB,
+    zillow_info_updated_at TIMESTAMPTZ
 );
 
 CREATE TABLE house_lists(
