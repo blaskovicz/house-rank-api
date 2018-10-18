@@ -3,6 +3,7 @@ import { makeExecutableSchema } from "graphql-tools";
 import { Kind } from "graphql/language";
 import * as database from "./database";
 import moment from "moment";
+import { locationResolver } from "./location";
 import { zillowAddressSearchResolver } from "./zillow/address-query";
 import {
   zillowPropertyResolver,
@@ -50,6 +51,10 @@ const typeDefs = `
     givenName: String
     picture: String
   }
+  type Location {
+    latitude: Float
+    longitude: Float    
+  }
   type User {
     id: Int
     provider: String
@@ -68,6 +73,7 @@ const typeDefs = `
     removeUserFromList(id: Int!, listId: Int!): User
   }
   type Query {
+    location: Location
     ip: String
     user: User
     principal: Principal
@@ -111,6 +117,7 @@ const resolvers = {
     ip: (obj, args, context, info) => {
       return context.req.ip;
     },
+    location: locationResolver,
     principal: (obj, args, context, info) => {
       const { principal } = context;
       return {
