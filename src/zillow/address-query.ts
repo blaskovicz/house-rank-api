@@ -1,6 +1,19 @@
 import nodeZillow from "node-zillow";
 import zillowError from "./zillow-error";
 
+export const ZILLOW_SEARCH_ADDRESS_TYPE = `
+type ZillowAddress {
+  zpid: String
+  city: String
+  latitude: Float
+  longitude: Float
+  state: String
+  street: String
+  zipcode: String
+  zillow: Zillow
+}
+`;
+
 interface AddressProperty {
   street: string[];
   zipcode: string[];

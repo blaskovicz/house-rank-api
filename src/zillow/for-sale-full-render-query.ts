@@ -121,7 +121,7 @@ export async function zillowPropertyResolver({ zpid }, args, { zwsid }, info) {
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36"
     },
     params: {
-      zwsid
+      "zws-id": zwsid
     },
     data: query(zpid)
   });

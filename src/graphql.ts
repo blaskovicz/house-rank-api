@@ -1,14 +1,21 @@
 import { GraphQLScalarType } from "graphql";
 import { makeExecutableSchema } from "graphql-tools";
 import { Kind } from "graphql/language";
-import * as database from "./database";
 import moment from "moment";
+import * as database from "./database";
 import { locationResolver } from "./location";
-import { zillowAddressSearchResolver } from "./zillow/address-query";
+import {
+  zillowAddressSearchResolver,
+  ZILLOW_SEARCH_ADDRESS_TYPE
+} from "./zillow/address-query";
 import {
   zillowPropertyResolver,
   ZILLOW_PROPERTY_INFO_TYPE
 } from "./zillow/for-sale-full-render-query";
+import {
+  zillowMapSearchResolver,
+  ZILLOW_SEARCH_ADDRESS_EXTENDED_TYPE
+} from "./zillow/map-address-query";
 import {
   zillowPricingResolver,
   ZILLOW_PRICING_INFO_TYPE
@@ -22,16 +29,8 @@ const typeDefs = `
     pricing: ZillowPricingInfo
     property: ZillowPropertyInfo    
   }
-  type ZillowAddress {
-    zpid: String
-    city: String
-    latitude: Float
-    longitude: Float
-    state: String
-    street: String
-    zipcode: String
-    zillow: Zillow
-  }
+  ${ZILLOW_SEARCH_ADDRESS_TYPE}
+  ${ZILLOW_SEARCH_ADDRESS_EXTENDED_TYPE}
   type House {
     id: Int
     zpid: String
@@ -79,6 +78,7 @@ const typeDefs = `
     principal: Principal
     zillowProperty(zpid: String!): Zillow
     zillowAddressSearch(address: String!, citystatezip: String!): [ZillowAddress]
+    zillowMapSearch(topRight: LatLongInput!, bottomLeft: LatLongInput!, zoom: Int): [ZillowAddressExtended]
   }
   schema {
     query: Query
@@ -134,7 +134,8 @@ const resolvers = {
     zillowProperty: (obj, { zpid }, context, info) => {
       return { zpid };
     },
-    zillowAddressSearch: zillowAddressSearchResolver
+    zillowAddressSearch: zillowAddressSearchResolver,
+    zillowMapSearch: zillowMapSearchResolver
   },
   Zillow: {
     pricing: zillowPricingResolver,
@@ -180,6 +181,12 @@ const resolvers = {
     }
   },
   ZillowAddress: {
+    zillow: ({ zpid }, args, context, info) => {
+      // TODO cache here via House rows, but don't create tons of useless rows
+      return { zpid };
+    }
+  },
+  ZillowAddressExtended: {
     zillow: ({ zpid }, args, context, info) => {
       // TODO cache here via House rows, but don't create tons of useless rows
       return { zpid };
