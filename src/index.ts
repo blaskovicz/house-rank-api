@@ -29,7 +29,13 @@ import { TokenPayload } from "google-auth-library/build/src/auth/loginticket";
 import { createUserFromPrincipal } from "./database";
 import { schema } from "./graphql";
 
-let { ZWSID, GOOGLE_CLIENT_ID, DATABASE_URL } = process.env;
+let {
+  NODE_ENV,
+  ZWSID,
+  GOOGLE_CLIENT_ID,
+  DATABASE_URL,
+  SPOOF_ID_TOKEN
+} = process.env;
 GOOGLE_CLIENT_ID = GOOGLE_CLIENT_ID.trim();
 ZWSID = ZWSID.trim();
 DATABASE_URL = DATABASE_URL.trim();
@@ -76,27 +82,49 @@ app.use(
     if (req.method === "OPTIONS") {
       return next();
     }
+    let tp: TokenPayload;
+    if (NODE_ENV !== "production" && SPOOF_ID_TOKEN === "true") {
+      tp = {
+        iss: "accounts.google.com",
+        email: "test-user@house-rank-api.com",
+        sub: "12345-feedbeef",
+        email_verified: true,
+        family_name: "User",
+        given_name: "Test",
+        picture: "/assets/house_rank-short-60.png",
+        aud: "apps.googleusercontent.com",
+        iat: 1540168537,
+        exp: 1540172137
+      };
+    } else {
+      const auth = req.header("authorization") || "";
+      const authParts = auth.split(" ", 2);
+      if (authParts.length !== 2 || authParts[1] === "") {
+        return res
+          .status(401)
+          .json({ message: "Invalid authorization header" });
+      }
+      const verifier = new OAuth2Client(GOOGLE_CLIENT_ID);
+      try {
+        const ticket = await verifier.verifyIdToken({
+          idToken: authParts[1],
+          audience: GOOGLE_CLIENT_ID
+        });
+        tp = ticket.getPayload();
+      } catch (err) {
+        console.error(err.stack);
+        return res
+          .status(401)
+          .json({ message: "Invalid or expired authorization" });
+      }
+    }
 
-    const auth = req.header("authorization") || "";
-    const authParts = auth.split(" ", 2);
-    if (authParts.length !== 2 || authParts[1] === "") {
-      return res.status(401).json({ message: "Invalid authorization header" });
-    }
-    const verifier = new OAuth2Client(GOOGLE_CLIENT_ID);
-    try {
-      const ticket = await verifier.verifyIdToken({
-        idToken: authParts[1],
-        audience: GOOGLE_CLIENT_ID
-      });
-      (req as any).principal = ticket.getPayload();
-      (req as any).user = await createUserFromPrincipal((req as any).principal);
-      next();
-    } catch (err) {
-      console.error(err.stack);
-      return res
-        .status(401)
-        .json({ message: "Invalid or expired authorization" });
-    }
+    const r = res as any;
+    // TokenPayload
+    r.principal = tp;
+    // User
+    r.user = await createUserFromPrincipal(r.principal);
+    next();
   })
 );
 
