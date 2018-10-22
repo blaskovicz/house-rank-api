@@ -26,8 +26,13 @@ import morgan from "morgan";
 import { OAuth2Client } from "google-auth-library";
 import expressGraphql from "express-graphql";
 import { TokenPayload } from "google-auth-library/build/src/auth/loginticket";
-import { createUserFromPrincipal } from "./database";
+import { createUserFromPrincipal, User } from "./database";
 import { schema } from "./graphql";
+
+interface ApiRequest extends express.Request {
+  principal?: TokenPayload;
+  user?: User;
+}
 
 let {
   NODE_ENV,
@@ -53,8 +58,7 @@ const app = express();
 // custom logging middleware
 app.use(
   // combined: `:remote-addr - :remote-user [:date] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"`
-  morgan((tokens, req, res) => {
-    const principal = (req as any).principal as TokenPayload;
+  morgan((tokens, req: ApiRequest, res) => {
     return [
       tokens["remote-addr"](req, res),
       tokens.date(req, res),
@@ -65,7 +69,9 @@ app.use(
       "-",
       tokens["response-time"](req, res),
       "ms",
-      !principal ? "-" : `${principal.sub}:${principal.email || "-"}`,
+      !req.principal
+        ? "-"
+        : `${req.principal.sub}:${req.principal.email || "-"}`,
       tokens.referrer(req, res),
       tokens["user-agent"](req, res)
     ].join(" ");
@@ -78,13 +84,12 @@ app.use(bodyParser.json());
 
 // oauth2 middleware
 app.use(
-  expressAsyncHandler(async (req, res, next) => {
+  expressAsyncHandler(async (req: ApiRequest, res, next) => {
     if (req.method === "OPTIONS") {
       return next();
     }
-    let tp: TokenPayload;
     if (NODE_ENV !== "production" && SPOOF_ID_TOKEN === "true") {
-      tp = {
+      req.principal = {
         iss: "accounts.google.com",
         email: "test-user@house-rank-api.com",
         sub: "12345-feedbeef",
@@ -110,7 +115,7 @@ app.use(
           idToken: authParts[1],
           audience: GOOGLE_CLIENT_ID
         });
-        tp = ticket.getPayload();
+        req.principal = ticket.getPayload();
       } catch (err) {
         console.error(err.stack);
         return res
@@ -119,11 +124,7 @@ app.use(
       }
     }
 
-    const r = res as any;
-    // TokenPayload
-    r.principal = tp;
-    // User
-    r.user = await createUserFromPrincipal(r.principal);
+    req.user = await createUserFromPrincipal(req.principal);
     next();
   })
 );
@@ -159,18 +160,21 @@ app.use(
   })
 );
 
-app.use("/graphql", (req, res, next) =>
-  expressGraphql({
-    schema,
-    graphiql: true,
-    pretty: true,
-    context: {
-      req,
-      zwsid: ZWSID,
-      principal: (req as any).principal,
-      user: (req as any).user
-    }
-  })(req, res)
+app.use(
+  "/graphql",
+  expressAsyncHandler(async (req: ApiRequest, res, next) => {
+    return expressGraphql({
+      schema,
+      graphiql: true,
+      pretty: true,
+      context: {
+        req,
+        zwsid: ZWSID,
+        principal: req.principal,
+        user: req.user
+      }
+    })(req, res);
+  })
 );
 
 const PORT = +(process.env.PORT || 3000);

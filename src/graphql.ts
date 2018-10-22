@@ -204,11 +204,11 @@ const resolvers = {
     }
   },
   User: {
-    ownedHouseLists: async (obj, args, context, info) => {
-      return database.houseListsByOwnerId(obj.id);
+    ownedHouseLists: async ({ id }, args, context, info) => {
+      return database.houseListsByOwnerId(id);
     },
-    memberHouseLists: (obj, args, context, info) => {
-      return database.houseListsViaMembershipByUserId(obj.id);
+    memberHouseLists: ({ id }, args, context, info) => {
+      return database.houseListsViaMembershipByUserId(id);
     }
   },
   Date: new GraphQLScalarType({
