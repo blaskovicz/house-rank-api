@@ -1,5 +1,6 @@
 import axios from "axios";
 import zillowError from "./zillow-error";
+import { buildRequestConfig } from ".";
 
 // TODO: expose other fields for proxing if needed
 export const ZILLOW_PROPERTY_INFO_TYPE = `
@@ -110,22 +111,26 @@ type ZillowPropertyInfo {
 `;
 
 export async function zillowPropertyResolver({ zpid }, args, { zwsid }, info) {
-  const zillowRes = await axios({
-    validateStatus: status => status < 600,
-    url: "https://www.zillow.com/graphql/",
-    method: "POST",
-    headers: {
-      "content-type": "text/plain",
-      "accept-language": "en-US,en;q=0.9",
-      "user-agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36"
-    },
-    params: {
-      "zws-id": zwsid
-    },
-    data: query(zpid)
-  });
-  if (zillowRes.status !== 200 || !zillowRes.data) {
+  const zillowRes = await axios(
+    buildRequestConfig({
+      url: "https://www.zillow.com/graphql/",
+      method: "POST",
+      headers: {
+        "content-type": "text/plain"
+      },
+      params: {
+        "zws-id": zwsid
+      },
+      data: query(zpid)
+    })
+  );
+
+  if (
+    zillowRes.status !== 200 ||
+    !zillowRes.data ||
+    !zillowRes.data.data ||
+    !zillowRes.data.data.property
+  ) {
     throw zillowError(zillowRes);
   }
   return zillowRes.data.data.property;

@@ -1,6 +1,7 @@
 import zillowError from "./zillow-error";
 import axios from "axios";
 import { ZillowAddress } from "./address-query";
+import { buildRequestConfig } from ".";
 
 export const ZILLOW_SEARCH_ADDRESS_EXTENDED_TYPE = `
 input LatLongInput {
@@ -240,24 +241,21 @@ export async function zillowMapSearchResolver(
     listright: "true",
     isMapSearch: "true"
   };
-  const zillowRes = await axios({
-    params,
-    url: "https://www.zillow.com/search/GetResults.htm",
-    validateStatus: status => status < 600,
-    method: "GET",
-    headers: {
-      "accept-language": "en-US,en;q=0.9",
-      "user-agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/69.0.3497.100 Safari/537.36"
-    }
-  });
+  const zillowRes = await axios(
+    buildRequestConfig({
+      params,
+      url: "https://www.zillow.com/search/GetResults.htm"
+    })
+  );
 
-  if (zillowRes.status !== 200 || !zillowRes.data) {
+  if (
+    zillowRes.status !== 200 ||
+    !zillowRes.data ||
+    !zillowRes.data.map ||
+    !zillowRes.data.map.properties
+  ) {
     throw zillowError(zillowRes);
   }
-  // delete zillowRes.data.list.pagination;
-  // delete zillowRes.data.list.listHTML;
-  // delete zillowRes.data.list.sortControlHTML;
-  // console.log(params, zillowRes.data.list);
+
   return (zillowRes.data.map.properties as any[]).map(mapZillowAddressExtended);
 }
