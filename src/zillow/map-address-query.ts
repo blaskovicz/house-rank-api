@@ -4,6 +4,10 @@ import { ZillowAddress } from "./address-query";
 import { buildRequestConfig } from ".";
 
 export const ZILLOW_SEARCH_ADDRESS_EXTENDED_TYPE = `
+input MinMaxInput {
+  min: Float
+  max: Float
+}
 input LatLongInput {
   latitude: Float
   longitude: Float    
@@ -48,9 +52,14 @@ type ZillowAddressExtended {
 }
 `;
 
-export interface LatLong {
+export interface LatLongInput {
   latitude: number;
   longitude: number;
+}
+
+export interface MinMaxInput {
+  min: number;
+  max: number;
 }
 
 export interface ZillowAddressExtended extends ZillowAddress {
@@ -175,45 +184,57 @@ export async function zillowMapSearchResolver(
   {
     topRight,
     bottomLeft,
-    zoom
-  }: { topRight: LatLong; bottomLeft: LatLong; zoom?: number },
+    zoom,
+    livingArea,
+    price,
+    bathrooms,
+    bedrooms,
+    lotSize,
+    yearBuilt,
+    includePending,
+    includeForSale = true,
+    includeRecentlySold,
+    includePreForeclosure,
+    includeForeclosure
+  }: {
+    topRight: LatLongInput;
+    bottomLeft: LatLongInput;
+    zoom?: number;
+    livingArea?: MinMaxInput;
+    price?: MinMaxInput;
+    bathrooms?: MinMaxInput;
+    bedrooms?: MinMaxInput;
+    lotSize?: MinMaxInput;
+    yearBuilt?: MinMaxInput;
+    includePending?: boolean;
+    includeForSale?: boolean;
+    includeRecentlySold?: boolean;
+    includePreForeclosure?: boolean;
+    includeForeclosure?: boolean;
+  },
   { zwsid },
   info
 ): Promise<ZillowAddressExtended[]> {
   // TODO: utilize node-zillow once updated
   // https://github.com/ralucas/node-zillow/issues/13
-  let rect: string = "";
-  let tokenLength: number = 0;
-  for (const char of `${bottomLeft.longitude},${bottomLeft.latitude},${
-    topRight.longitude
-  },${topRight.latitude}`) {
-    if (char === ".") {
-      continue;
-    } else if (char === "-") {
-      tokenLength -= 1;
-    } else if (char === ",") {
-      tokenLength = -1;
-    } else if (tokenLength === 8) {
-      continue;
-    }
-    rect += char;
-    tokenLength += 1;
-  }
+
   const params = {
-    rect,
+    rect: buildParamRect(bottomLeft, topRight),
     zoom: +(zoom || 12),
     "zws-id": zwsid,
     spt: "homes",
-    status: "100000",
+    status: `${buildBinParam(includeForSale)}0${buildBinParam(
+      includeRecentlySold
+    )}000`,
     lt: "111101",
     ht: "111111",
-    pr: ",",
+    pr: buildMinMax(price),
     mp: ",", // ??
-    bd: "1,",
-    ba: "0,",
-    sf: ",",
-    lot: ",",
-    yr: ",",
+    bd: buildMinMax(bedrooms),
+    ba: buildMinMax(bathrooms),
+    sf: buildMinMax(livingArea),
+    lot: buildMinMax(lotSize),
+    yr: buildMinMax(yearBuilt),
     singlestory: "0",
     hoa: "0,",
     pho: "0",
@@ -226,13 +247,13 @@ export async function zillowMapSearchResolver(
     "furnished-apartments": "0",
     "cheap-apartments": "0",
     "studio-apartments": "0",
-    pnd: "1", // include pending: 1 (true) or 0 (false)
+    pnd: buildBinParam(includePending),
     red: "0",
     zso: "0",
     days: "any",
     ds: "all",
-    pmf: "0",
-    pf: "0",
+    pmf: buildBinParam(includeForeclosure),
+    pf: buildBinParam(includePreForeclosure),
     sch: "100111",
     p: "1",
     sort: "globalrelevanceex",
@@ -258,4 +279,47 @@ export async function zillowMapSearchResolver(
   }
 
   return (zillowRes.data.map.properties as any[]).map(mapZillowAddressExtended);
+}
+
+function buildBinParam(input?: boolean): number {
+  if (typeof input !== "boolean" || !input) {
+    return 0;
+  }
+  return 1;
+}
+
+function buildMinMax(input?: MinMaxInput): string {
+  let param = "";
+  if (input && typeof input.min === "number" && input.min >= 0) {
+    param += `${input.min}`;
+  }
+  param += ",";
+  if (input && typeof input.max === "number" && input.max >= 0) {
+    param += `${input.max}`;
+  }
+  return param;
+}
+
+function buildParamRect(
+  bottomLeft: LatLongInput,
+  topRight: LatLongInput
+): string {
+  let rect: string = "";
+  let tokenLength: number = 0;
+  for (const char of `${bottomLeft.longitude},${bottomLeft.latitude},${
+    topRight.longitude
+  },${topRight.latitude}`) {
+    if (char === ".") {
+      continue;
+    } else if (char === "-") {
+      tokenLength -= 1;
+    } else if (char === ",") {
+      tokenLength = -1;
+    } else if (tokenLength === 8) {
+      continue;
+    }
+    rect += char;
+    tokenLength += 1;
+  }
+  return rect;
 }

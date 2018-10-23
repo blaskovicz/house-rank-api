@@ -78,7 +78,22 @@ const typeDefs = `
     principal: Principal
     zillowProperty(zpid: String!): Zillow
     zillowAddressSearch(address: String!, citystatezip: String!): [ZillowAddress]
-    zillowMapSearch(topRight: LatLongInput!, bottomLeft: LatLongInput!, zoom: Int): [ZillowAddressExtended]
+    zillowMapSearch(
+      topRight: LatLongInput!,
+      bottomLeft: LatLongInput!,
+      zoom: Int,
+      livingArea: MinMaxInput,
+      price: MinMaxInput,
+      bathrooms: MinMaxInput,
+      bedrooms: MinMaxInput,
+      lotSize: MinMaxInput,
+      yearBuilt: MinMaxInput,
+      includePending: Boolean,
+      includeForSale: Boolean,
+      includeRecentlySold: Boolean,      
+      includePreForeclosure: Boolean,
+      includeForeclosure: Boolean
+    ): [ZillowAddressExtended]
   }
   schema {
     query: Query
