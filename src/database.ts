@@ -215,6 +215,77 @@ export async function removeHouseFromList(
   }
 }
 
+export async function ignoreHouse(
+  zpid: string,
+  userId: number
+): Promise<House> {
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    let res = await client.query("select * from houses where zpid = $1", [
+      zpid
+    ]);
+    if (res.rowCount === 0) {
+      res = await client.query(
+        "insert into houses(zpid) values ($1) returning *",
+        [zpid]
+      );
+    }
+    const house: House = res.rows[0];
+
+    res = await client.query(
+      "select * from houses_ignored where user_id = $1 and house_id = $2 LIMIT 1",
+      [userId, house.id]
+    );
+
+    if (res.rowCount === 0) {
+      await client.query(
+        "insert into houses_ignored(user_id, house_id) values ($1, $2)",
+        [userId, house.id]
+      );
+    }
+
+    await client.query("commit");
+    return house;
+  } catch (e) {
+    await client.query("rollback");
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
+export async function clearIgnoredHouse(
+  zpid: string,
+  userId: number
+): Promise<House> {
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    let res = await client.query("select * from houses where zpid = $1", [
+      zpid
+    ]);
+    if (res.rowCount === 0) {
+      throw new Error(`House with zpid ${zpid} not found`);
+    }
+    const house = res.rows[0];
+
+    res = await client.query(
+      "delete from houses_ignored where house_id = $1 and user_id = $2",
+      [house.id, userId]
+    );
+
+    await client.query("commit");
+
+    return res.rowCount === 1 ? house : null;
+  } catch (e) {
+    await client.query("rollback");
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
 export async function addUserToList(
   email: string,
   houseListId: number
@@ -295,6 +366,18 @@ export async function removeUserFromList(
   }
 }
 
+export async function ignoredHousesByUserId(userId: number): Promise<House[]> {
+  const client = await pool.connect();
+  try {
+    const res = await client.query(
+      "select * from houses where id IN (select id from houses_ignored where user_id = $1)",
+      [userId]
+    );
+    return res.rows;
+  } finally {
+    client.release();
+  }
+}
 export async function houseListsByOwnerId(
   ownerId: number
 ): Promise<HouseList[]> {

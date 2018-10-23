@@ -60,6 +60,7 @@ const typeDefs = `
     provider_id: String
     email: String
     created_at: Date
+    ignoredHouses: [House]
     ownedHouseLists: [HouseList]
     memberHouseLists: [HouseList]
   }
@@ -68,6 +69,8 @@ const typeDefs = `
     createHouseList(name: String!): HouseList
     addHouseToList(zpid: String!, listId: Int!): House
     removeHouseFromList(zpid: String!, listId: Int!): House
+    ignoreHouse(zpid: String!): House
+    clearIgnoredHouse(zpid: String!): House    
     addUserToList(email: String!, listId: Int!): User
     removeUserFromList(id: Int!, listId: Int!): User
   }
@@ -126,6 +129,12 @@ const resolvers = {
     removeUserFromList: async (obj, { listId, id }, context, info) => {
       await database.hasHouseListAccessRW(listId, context.user.id);
       return database.removeUserFromList(id, listId);
+    },
+    ignoreHouse: async (obj, { zpid }, context, info) => {
+      return database.ignoreHouse(zpid, context.user.id);
+    },
+    clearIgnoredHouse: async (obj, { zpid }, context, info) => {
+      return database.clearIgnoredHouse(zpid, context.user.id);
     }
   },
   Query: {
@@ -219,6 +228,9 @@ const resolvers = {
     }
   },
   User: {
+    ignoredHouses: async ({ id }, args, context, info) => {
+      return database.ignoredHousesByUserId(id);
+    },
     ownedHouseLists: async ({ id }, args, context, info) => {
       return database.houseListsByOwnerId(id);
     },

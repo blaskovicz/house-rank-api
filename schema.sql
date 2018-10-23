@@ -39,3 +39,11 @@ CREATE TABLE house_list_houses(
     FOREIGN KEY(house_list_id) REFERENCES houses(id),
     PRIMARY KEY (house_id, house_list_id)    
 );
+
+CREATE TABLE houses_ignored (
+    house_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    FOREIGN KEY(house_id) REFERENCES houses(id),
+    FOREIGN KEY(user_id) REFERENCES users(id),
+    PRIMARY KEY(house_id, user_id)
+);
