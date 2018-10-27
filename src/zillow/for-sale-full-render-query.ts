@@ -2,8 +2,35 @@ import axios from "axios";
 import zillowError from "./zillow-error";
 import { buildRequestConfig } from ".";
 
-// TODO: expose other fields for proxing if needed
+// exposed query via our api
 export const ZILLOW_PROPERTY_INFO_TYPE = `
+type ZillowMortgageInfo {
+  fifteenYearFixedRate: Float
+  thirtyYearFixedRate: Float
+  arm5Rate: Float
+}
+type ZillowAddressInfo {
+  community: String
+  subdivision: String
+  unitPrefix: String
+  unitNumber: String
+  city: String
+  latitude: Float
+  longitude: Float
+  state: String
+  streetAddress: String
+  zipcode: String
+}
+type ZillowListingTypeInfo {
+  is_FSBO: Boolean
+  is_FSBA: Boolean
+  is_pending: Boolean
+  is_newHome: Boolean
+  is_foreclosure: Boolean
+  is_bankOwned: Boolean
+  is_forAuction: Boolean
+  is_comingSoon: Boolean
+}
 type ZillowCategoryInfo {
   categoryName: String
   categoryFacts: [ZillowFactInfo]
@@ -38,9 +65,9 @@ type ZillowForeclosureInfo {
   wasDefault: Boolean
 }
 type ZillowPropertyInfo {
+  address: ZillowAddressInfo
   latitude: Float
   longitude: Float
-  id: String
   daysOnZillow: Int
   dateSold: Date
   datePosted: Date
@@ -50,15 +77,15 @@ type ZillowPropertyInfo {
   city: String
   postingUrl: String
   propertyTypeDimension: String
-  hdpTypeDimension: String
   listingTypeDimension: String
   featuredListingTypeDimension: String
   brokerIdDimension: String
   keystoneHomeStatus: String
   rentalApplicationsAcceptedType: String
   yearBuilt: Int
-  boroughId: Int
-  brokerId: Int
+  boroughId: ID
+  brokerId: ID
+  parcelId: ID
   brokerageName: String
   providerListingID: String
   postingProductType: String
@@ -102,11 +129,16 @@ type ZillowPropertyInfo {
   livingArea: Float
   hoaFee: Float
   propertyTaxRate: Float
+  mortgageRates: ZillowMortgageInfo
   foreclosureTypes: ZillowForeclosureInfo
   smallPhotos: [ZillowPhotoInfo]
   mediumPhotos: [ZillowPhotoInfo]
   hugePhotos: [ZillowPhotoInfo]
   homeFacts: ZillowHomeFactsInfo
+  listing_sub_type: ZillowListingTypeInfo
+  nearbySales: [ZillowPropertyInfo]
+  nearbyHomes: [ZillowPropertyInfo]
+  comps: [ZillowPropertyInfo]
 }
 `;
 
@@ -139,22 +171,94 @@ export async function zillowPropertyResolver({ zpid }, args, { zwsid }, info) {
 export default function query(zpid: number): string {
   return JSON.stringify({
     variables: { zpid },
-    query: `query ForSaleFullRenderQuery($zpid: ID!) {
+    query: `
+    fragment ZillowPropertyCoreInfo on Property {
+      parcelId      
+      latitude
+      longitude
+      lotSize
+      zpid
+      bedrooms
+      bathrooms
+      livingArea
+      price
+      yearBuilt
+      homeType
+      taxAssessedValue
+      taxAssessedYear
+      priceChange
+      hoaFee
+      lastSoldPrice
+      currency
+    }
+    fragment ZillowAddressInfo on Property {
+      address {
+        city
+        state
+        zipcode
+        streetAddress
+        community
+        subdivision
+        unitPrefix
+        unitNumber
+      }
+    }
+    fragment ZillowListingTypeInfo on Property {
+      datePosted
+      comingSoonOnMarketDate
+      keystoneHomeStatus
+      isNonOwnerOccupied       
+      listingTypeDimension
+      featuredListingTypeDimension      
+      homeStatus
+      dateSold
+      daysOnZillow          
+      isZillowOwned
+      listingStatusChangeDate
+      isPreforeclosureAuction
+      isRecentStatusChange            
+      listing_sub_type {
+        is_FSBO
+        is_FSBA
+        is_pending
+        is_newHome
+        is_foreclosure
+        is_bankOwned
+        is_forAuction
+        is_comingSoon
+      }
+    }
+    fragment ZillowPhotoInfo on Property {
+      smallPhotos: photos(size: S, count: 1) {
+        width
+        height
+        url
+        caption
+      }
+      mediumPhotos: photos(size: M) {
+        url
+        width
+        height
+        caption
+      }
+      hugePhotos: photos(size: L) {
+        url
+        width
+        height
+        caption
+      }
+      photoCount
+    }
+    query ForSaleFullRenderQuery($zpid: ID!) {
         property(zpid: $zpid) {
-          id
-          daysOnZillow
-          dateSold
-          lastSoldPrice
-          isZillowOwned
+          ...ZillowAddressInfo
+          ...ZillowPhotoInfo
+          ...ZillowPropertyCoreInfo
+          ...ZillowListingTypeInfo          
           city
           propertyTypeDimension
-          hdpTypeDimension
-          listingTypeDimension
-          featuredListingTypeDimension
           brokerIdDimension
-          keystoneHomeStatus
           rentalApplicationsAcceptedType
-          yearBuilt
           boroughId
           brokerId
           brokerageName
@@ -164,17 +268,7 @@ export default function query(zpid: number): string {
           isFeatured
           rentalDateAvailable
           newConstructionType
-          comingSoonOnMarketDate
-          listingStatusChangeDate
-          isPreforeclosureAuction
-          taxAssessedValue
-          taxAssessedYear
-          priceChange
-          isNonOwnerOccupied
-          isRecentStatusChange
           forecast
-          homeStatus
-          homeType
           country
           description
           isUndisclosedAddress
@@ -187,60 +281,20 @@ export default function query(zpid: number): string {
           regionString
           streetAddress
           abbreviatedAddress
-          lotSize
           zestimate
           zestimateHighPercent
           zestimateLowPercent
           zestimateMinus30
           zipcode
-          zpid
-          price
-          yearBuilt
-          bedrooms
-          bathrooms
-          livingArea
-          hoaFee
           propertyTaxRate
           mortgageRates {
             fifteenYearFixedRate
             thirtyYearFixedRate
             arm5Rate
-          }          
-          citySearchUrl {
-            text
-            path
           }
           parentRegion {
             name
-          }          
-          zipcodeSearchUrl {
-            path
-            text
-          }
-          apartmentsForRentInZipcodeSearchUrl {
-            path
-            text
-          }
-          housesForRentInZipcodeSearchUrl {
-            path
-            text
-          }
-          schoolSearchUrl {
-            path
-            text
-          }
-          stateSearchUrl {
-            path
-            text
-          }          
-          boroughSearchUrl {
-            text
-            path
-          }
-          communityUrl {
-            path
-            text
-          }          
+          }                 
           homeTourHighlights {
             agentNotes {
               date
@@ -257,28 +311,6 @@ export default function query(zpid: number): string {
             }
           }                    
           countyFIPS
-          parcelId
-          address {
-            city
-            state
-            zipcode
-            streetAddress
-            community
-            subdivision
-            unitPrefix
-            unitNumber  
-          }
-          hdpUrl
-          listing_sub_type {
-            is_FSBO
-            is_FSBA
-            is_pending
-            is_newHome
-            is_foreclosure
-            is_bankOwned
-            is_forAuction
-            is_comingSoon
-          }
           homeFacts {
             aboveFactsAndFeaturesCategories {
               categoryName
@@ -335,82 +367,23 @@ export default function query(zpid: number): string {
             }
           }
           nearbySales {
-            address {
-              city
-              state
-              zipcode
-              streetAddress
-              community
-              subdivision
-              unitPrefix
-              unitNumber  
-            }
-            bathrooms
-            bedrooms
-            dateSold
-            hdpUrl
-            homeStatus
-            latitude
-            livingArea
-            longitude
-            price
-            zipcode
-            zpid
-            currency
+            ...ZillowAddressInfo
+            ...ZillowListingTypeInfo
+            ...ZillowPropertyCoreInfo
+            ...ZillowPhotoInfo
           }          
           nearbyHomes(count: 15) {
-            latitude
-            longitude
-            daysOnZillow
-            homeStatus
-            photoCount
-            zpid
-            hdpUrl
-            bedrooms
-            bathrooms
-            livingArea
-            price
-            address {
-              city
-              state
-              zipcode
-              streetAddress
-              community
-              subdivision
-              unitPrefix
-              unitNumber              
-            }
-            openHouseHours
-            listing_sub_type {
-              is_FSBO
-              is_FSBA
-              is_newHome
-              is_pending
-              is_foreclosure
-              is_bankOwned
-              is_forAuction
-              is_comingSoon
-            }
-            isNonOwnerOccupied
-            photos(size: S, count: 1) {
-              width
-              height
-              url
-            }
-            currency
-            isPremierBuilder
-            homeStatus
-            listing_sub_type {
-              is_FSBA
-              is_FSBO
-              is_newHome
-              is_pending
-              is_foreclosure
-              is_bankOwned
-              is_forAuction
-              is_comingSoon
-            }
-          }          
+            ...ZillowAddressInfo
+            ...ZillowListingTypeInfo
+            ...ZillowPropertyCoreInfo
+            ...ZillowPhotoInfo
+          }
+          comps(count: 15) {
+            ...ZillowAddressInfo
+            ...ZillowListingTypeInfo
+            ...ZillowPropertyCoreInfo
+            ...ZillowPhotoInfo
+          }                    
           listingSource
           listingAccount {
             zuid
@@ -444,49 +417,6 @@ export default function query(zpid: number): string {
               }              
             }
           }
-          comps(count: 15) {
-            latitude
-            longitude
-            lotSize
-            daysOnZillow
-            homeStatus
-            photoCount
-            zpid
-            hdpUrl
-            bedrooms
-            bathrooms
-            livingArea
-            price
-            address {
-              city
-              state
-              zipcode
-              streetAddress
-              community
-              subdivision
-              unitPrefix
-              unitNumber  
-            }
-            listing_sub_type {
-              is_FSBO
-              is_FSBA
-              is_newHome
-              is_pending
-              is_foreclosure
-              is_bankOwned
-              is_forAuction
-              is_comingSoon
-            }
-            isNonOwnerOccupied
-            photos(size: S, count: 1) {
-              width
-              height
-              url
-            }
-            currency
-            isPremierBuilder
-            homeStatus
-          }
           foreclosureTypes {
             isBankOwned
             wasREO
@@ -516,8 +446,6 @@ export default function query(zpid: number): string {
           foreclosingBank
           foreclosureJudicialType
           festimate
-          datePosted
-          currency
           foreclosureMoreInfo {
             trusteeName
             trusteeAddress
@@ -531,33 +459,10 @@ export default function query(zpid: number): string {
             }
             apn
           }
-          propertyUpdatePageLink
-          moveHomeMapLocationLink
-          propertyEventLogLink 
-          editPropertyHistorylink
           brokerIdForTracking
           postingUrl
           latitude
           longitude
-          smallPhotos: photos(size: S) {
-            width
-            height
-            url
-            caption
-          }          
-          mediumPhotos: photos(size: M) {
-            url
-            width
-            height
-            caption
-          }
-          hugePhotos: photos(size: XXL) {
-            url
-            width
-            height
-            caption
-          }          
-          photoCount
           openHouseSchedule {
             startTime
             endTime
