@@ -188,6 +188,7 @@ export default function query(zpid: number): string {
       taxAssessedYear
       priceChange
       hoaFee
+      propertyTaxRate
       lastSoldPrice
       currency
     }
@@ -286,7 +287,6 @@ export default function query(zpid: number): string {
           zestimateLowPercent
           zestimateMinus30
           zipcode
-          propertyTaxRate
           mortgageRates {
             fifteenYearFixedRate
             thirtyYearFixedRate

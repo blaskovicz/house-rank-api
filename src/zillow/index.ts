@@ -6,10 +6,11 @@ const baseAxiosConfig: AxiosRequestConfig = {
   headers: {
     accept: "*/*",
     dnt: 1,
+    cookie: "JSESSIONID=",
     "accept-encoding": "gzip, deflate, br",
     "accept-language": "en-US,en;q=0.9",
     origin: "https://www.zillow.com",
-    referer: "https://www.zillow.com",
+    referer: "https://www.zillow.com/homes/for_sale/",
     "user-agent":
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.67 Safari/537.36"
   }
