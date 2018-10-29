@@ -276,7 +276,6 @@ export async function clearIgnoredHouse(
     );
 
     await client.query("commit");
-
     return res.rowCount === 1 ? house : null;
   } catch (e) {
     await client.query("rollback");
@@ -370,7 +369,7 @@ export async function ignoredHousesByUserId(userId: number): Promise<House[]> {
   const client = await pool.connect();
   try {
     const res = await client.query(
-      "select * from houses where id IN (select id from houses_ignored where user_id = $1)",
+      "select * from houses where id IN (select house_id from houses_ignored where user_id = $1)",
       [userId]
     );
     return res.rows;
