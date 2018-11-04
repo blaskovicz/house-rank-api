@@ -2,6 +2,7 @@ import zillowError from "./zillow-error";
 import axios from "axios";
 import { ZillowAddress } from "./address-query";
 import { buildRequestConfig } from ".";
+const logger = console;
 
 export const ZILLOW_SEARCH_ADDRESS_EXTENDED_TYPE = `
 input MinMaxInput {
@@ -262,6 +263,9 @@ export async function zillowMapSearchResolver(
     listright: "true",
     isMapSearch: "true"
   };
+
+  logger.info(`[map-address-query] requesting ${params.rect}`);
+
   const zillowRes = await axios(
     buildRequestConfig({
       params,

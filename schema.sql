@@ -12,7 +12,8 @@ CREATE TABLE houses(
     zpid TEXT NOT NULL UNIQUE,
     zillow_pricing_info JSONB,
     zillow_property_info JSONB,
-    zillow_info_updated_at TIMESTAMPTZ
+    zillow_property_updated_at TIMESTAMPTZ,
+    zillow_pricing_updated_at TIMESTAMPTZ
 );
 
 CREATE TABLE house_lists(

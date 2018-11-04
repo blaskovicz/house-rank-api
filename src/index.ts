@@ -129,12 +129,6 @@ app.use(
   })
 );
 
-// error middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: "an error occurred" });
-});
-
 // cors middleware
 app.use(
   "*",
@@ -176,6 +170,12 @@ app.use(
     })(req, res);
   })
 );
+
+// error middleware
+app.use((err, req, res, next) => {
+  console.error("[error-middleware]", err.stack);
+  res.status(500).json({ message: "an error occurred" });
+});
 
 const PORT = +(process.env.PORT || 3000);
 app.listen(PORT, () => {

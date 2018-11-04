@@ -26,7 +26,8 @@ export interface House {
   zpid: string;
   zillow_pricing_info?: JSON;
   zillow_property_info?: JSON;
-  zillow_info_updated_at?: Date;
+  zillow_pricing_updated_at?: Date;
+  zillow_property_updated_at?: Date;
 }
 
 export interface HouseList {
@@ -74,25 +75,79 @@ export async function createHouseList(
   }
 }
 
-export async function updateHouse(
+export async function updateHouseProperty(
   zpid: string,
-  zpricing: JSON,
   zproperty: JSON,
-  zupdated?: Date
+  zupdated: Date = new Date()
 ): Promise<void> {
   const client = await pool.connect();
   try {
     const res = await client.query(
-      "update houses set zillow_pricing_info = $1, zillow_property_info = $2, zillow_info_updated_at = $3 where zpid = $4",
-      [
-        JSON.stringify(zpricing),
-        JSON.stringify(zproperty),
-        zupdated || new Date(),
-        zpid
-      ]
+      `
+      insert into houses(zpid, zillow_property_info, zillow_property_updated_at)
+        values ($1, $2, $3)
+      on conflict (zpid)
+      do update set
+      zillow_property_info = EXCLUDED.zillow_property_info,
+      zillow_property_updated_at = EXCLUDED.zillow_property_updated_at`,
+      [zpid, JSON.stringify(zproperty), zupdated]
     );
     if (res.rowCount !== 1) {
-      throw new Error(`House with zpid ${zpid} not found`);
+      throw new Error(`House with zpid ${zpid} could not be updated`);
+    }
+  } finally {
+    client.release();
+  }
+}
+
+export async function updateHousePricing(
+  zpid: string,
+  zpricing: JSON,
+  zupdated: Date = new Date()
+): Promise<void> {
+  const client = await pool.connect();
+  try {
+    const res = await client.query(
+      `
+      insert into houses(zpid, zillow_pricing_info, zillow_pricing_updated_at)
+        values ($1, $2, $3)
+      on conflict (zpid)
+      do update set
+        zillow_pricing_info = EXCLUDED.zillow_pricing_info,
+        zillow_pricing_updated_at = EXCLUDED.zillow_pricing_updated_at`,
+      [zpid, JSON.stringify(zpricing), zupdated]
+    );
+    if (res.rowCount !== 1) {
+      throw new Error(`House with zpid ${zpid} could not be updated`);
+    }
+  } finally {
+    client.release();
+  }
+}
+
+export async function updateHouse(
+  zpid: string,
+  zproperty: JSON,
+  zpricing: JSON,
+  zupdated: Date = new Date()
+): Promise<void> {
+  const client = await pool.connect();
+  try {
+    const res = await client.query(
+      `
+      insert into houses(zpid, zillow_property_info, zillow_pricing_info, zillow_property_updated_at, zillow_pricing_updated_at)
+        values ($1, $2, $3, $4, $4)
+      on conflict (zpid)
+      do update set
+        zillow_property_info = EXCLUDED.zillow_property_info,
+        zillow_pricing_info = EXCLUDED.zillow_pricing_info,
+        zillow_property_updated_at = EXCLUDED.zillow_property_updated_at,
+        zillow_pricing_updated_at = EXCLUDED.zillow_pricing_updated_at
+      `,
+      [zpid, JSON.stringify(zproperty), JSON.stringify(zpricing), zupdated]
+    );
+    if (res.rowCount !== 1) {
+      throw new Error(`House with zpid ${zpid} could not be updated`);
     }
   } finally {
     client.release();
@@ -163,6 +218,21 @@ export async function addHouseToList(
   } catch (e) {
     await client.query("rollback");
     throw e;
+  } finally {
+    client.release();
+  }
+}
+
+export async function houseByZpid(zpid: string): Promise<House> {
+  const client = await pool.connect();
+  try {
+    const res = await client.query("select * from houses where zpid = $1", [
+      zpid
+    ]);
+    if (res.rowCount !== 1) {
+      throw new Error(`House with zpid ${zpid} not found`);
+    }
+    return res.rows[0] as House;
   } finally {
     client.release();
   }

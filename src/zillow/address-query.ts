@@ -1,5 +1,6 @@
 import nodeZillow from "node-zillow";
 import zillowError from "./zillow-error";
+const logger = console;
 
 export const ZILLOW_SEARCH_ADDRESS_TYPE = `
 type ZillowAddress {
@@ -79,6 +80,8 @@ export async function zillowAddressSearchResolver(
   if (!address) {
     address = "5 Washington Square S";
   }
+
+  logger.info(`[address-query] requesting ${address} ${citystatezip}`);
 
   const zillow = new nodeZillow(zwsid, { https: true });
   const zillowRes = await zillow.get("GetSearchResults", {

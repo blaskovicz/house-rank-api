@@ -1,6 +1,9 @@
 import axios from "axios";
+import moment from "moment";
 import zillowError from "./zillow-error";
 import { buildRequestConfig } from ".";
+import * as database from "../database";
+const logger = console;
 
 export const ZILLOW_PRICING_INFO_TYPE = `
 type ZillowTaxHistoryInfo {
@@ -38,7 +41,30 @@ type ZillowPricingInfo {
 }
 `;
 
-export async function zillowPricingResolver({ zpid }, args, { zwsid }, info) {
+export async function zillowPricingResolver(
+  { zpid, house }: { zpid: string; house?: database.House },
+  args,
+  { zwsid },
+  info
+) {
+  try {
+    const savedHouse = house ? house : await database.houseByZpid(zpid);
+    if (
+      savedHouse.zillow_pricing_updated_at &&
+      moment().isBefore(
+        moment(savedHouse.zillow_pricing_updated_at)
+          .add(2, "days")
+          .add(Math.floor(Math.random() * 120), "minutes")
+      ) &&
+      savedHouse.zillow_pricing_info
+    ) {
+      logger.info(`[price-tax-query] cached zpid=${zpid}`);
+      return savedHouse.zillow_pricing_info;
+    }
+  } catch (e) {}
+
+  logger.info(`[price-tax-query] requesting zpid=${zpid}`);
+
   const zillowRes = await axios(
     buildRequestConfig({
       url: "https://www.zillow.com/graphql/",
@@ -61,10 +87,17 @@ export async function zillowPricingResolver({ zpid }, args, { zwsid }, info) {
   ) {
     throw zillowError(zillowRes);
   }
-  return zillowRes.data.data.property;
+
+  const property = zillowRes.data.data.property;
+  try {
+    await database.updateHousePricing(zpid, property);
+  } catch (e) {
+    logger.warn(`[price-tax-query] error saving zpid=${zpid} pricing info`, e);
+  }
+  return property;
 }
 
-export default function query(zpid: number): string {
+export default function query(zpid: number | string): string {
   return JSON.stringify({
     variables: { zpid },
     query: `query PriceTaxQuery($zpid: ID!) {
